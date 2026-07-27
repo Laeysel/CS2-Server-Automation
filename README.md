@@ -14,8 +14,6 @@ Valve patcht CS2 ohne Ankündigung. Jedes Update bringt drei Fehlerarten mit sic
 2. **Plugins sind inkompatibel**, weil Metamod und CounterStrikeSharp gegen eine bestimmte Engine-Version gebaut sind.
 3. **`gameinfo.gi` wird von Valve überschrieben.** Damit verschwindet der Metamod-Eintrag – und das ist der unangenehmste Fall: Der Server startet ganz normal, meldet keinen Fehler, läuft aber ohne jedes Plugin. MatchZy ist weg, das Match lässt sich nicht starten, und niemand versteht warum.
 
-Vorher hieß das: Jemand will spielen, es geht nicht, ich setze mich an den Rechner und suche. Meistens abends, meistens dann, wenn alle schon da sind.
-
 ## Die Lösung
 
 Ein Wartungslauf um 06:00 Uhr, wenn niemand spielt:
@@ -26,7 +24,7 @@ Server stoppen  →  Build-Version merken  →  steamcmd  →  Version vergleich
                 →  Server starten  →  verifizieren, dass er läuft
 ```
 
-Das Ergebnis: Der Server ist morgens aktuell und funktionsfähig, oder ich habe im Log eine klare Aussage, was kaputt ist. Kein Suchen mehr im laufenden Betrieb.
+Der Server ist morgens aktuell und funktionsfähig oder ich habe im Log eine klare Aussage, was kaputt ist. Kein Suchen mehr im laufenden Betrieb.
 
 ## Aufbau
 
@@ -42,7 +40,7 @@ docs/crontab.example      Cron-Eintrag
 ## Entscheidungen, die ich bewusst so getroffen habe
 
 **Der Server wird immer wieder gestartet, egal was schiefgeht.**
-Das Skript stoppt den Server früh und macht danach Dinge, die fehlschlagen können. Ohne Absicherung bleibt der Server bei einem Fehler in steamcmd dauerhaft unten – und das fällt erst abends auf. Deshalb gibt es einen `trap ... EXIT`, der den Dienst bei jedem Abbruch wieder hochfährt. Zusätzlich wird nach dem Start geprüft, ob er wirklich aktiv ist, statt das anzunehmen.
+Das Skript stoppt den Server früh und macht danach Dinge, die fehlschlagen können. Ohne Absicherung bleibt der Server bei einem Fehler in steamcmd dauerhaft unten und das fällt erst abends auf. Deshalb gibt es einen `trap ... EXIT`, der den Dienst bei jedem Abbruch wieder hochfährt. Zusätzlich wird nach dem Start geprüft, ob er wirklich aktiv ist, statt das anzunehmen.
 
 **Systemd statt `screen` oder `nohup`.**
 Automatischer Neustart bei Absturz, sauberes Logging über journalctl, und `stop`/`start` funktioniert aus dem Skript heraus ohne PID-Gefrickel. `exec` im Start-Skript sorgt dafür, dass der Server selbst der Hauptprozess des Dienstes wird und Signale direkt bekommt statt an ein Wrapper-Bash zu gehen.
@@ -94,4 +92,4 @@ GSLT-Token gibt es unter https://steamcommunity.com/dev/managegameservers
 
 ---
 
-Gebaut, weil ich keine Lust mehr hatte, den Server abends von Hand zu reparieren.
+Gebaut, weil ich keine Lust mehr hatte, den Server abends von Hand zu reparieren bzw. zu updaten.
