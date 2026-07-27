@@ -1,73 +1,58 @@
 # CS2 Server Automation
 
-Automatisierte Wartung für einen CS2 Dedicated Server mit Plugin-Stack (Metamod, CounterStrikeSharp, MatchZy). Läuft seit Monaten produktiv auf meinem eigenen Server für eine feste Gruppe von Mitspielern.
+Wartungsskripte für einen CS2 Dedicated Server mit Metamod, CounterStrikeSharp und MatchZy. Bash, systemd, Cron.
 
-Bash, systemd, Cron. Kein Framework, kein Docker – bewusst so.
+## Problem
 
----
+Valve patcht CS2 oft ohne Ankündigung. Danach ist meistens eins von drei Dingen kaputt:
 
-## Das Problem
+- Server läuft noch auf dem alten Build, Spieler kommen nicht rein.
+- Metamod und CSSharp sind gegen die alte Engine-Version gebaut und laden nicht.
+- `gameinfo.gi` wird von Valve überschrieben, der Metamod-Eintrag ist weg.
 
-Valve patcht CS2 ohne Ankündigung. Jedes Update bringt drei Fehlerarten mit sich:
+Der dritte Fall ist der ärgerlichste. Der Server startet ganz normal und wirft keinen Fehler, hat aber kein einziges Plugin geladen. MatchZy fehlt, das Match lässt sich nicht starten, und keiner weiß warum.
 
-1. **Server läuft auf altem Build** und Spieler können nicht joinen, weil der Client neuer ist.
-2. **Plugins sind inkompatibel**, weil Metamod und CounterStrikeSharp gegen eine bestimmte Engine-Version gebaut sind.
-3. **`gameinfo.gi` wird von Valve überschrieben.** Damit verschwindet der Metamod-Eintrag – und das ist der unangenehmste Fall: Der Server startet ganz normal, meldet keinen Fehler, läuft aber ohne jedes Plugin. MatchZy ist weg, das Match lässt sich nicht starten, und niemand versteht warum.
+Vorher lief das so, das jemand Abends spielen wollte und mir eine Nachricht geschrieben hat, damit ich das Problem behebe.
 
-## Die Lösung
+## Was es macht
 
-Ein Wartungslauf um 06:00 Uhr, wenn niemand spielt:
+Ein Cronjob um 06:00, da spielt bei uns keiner:
 
 ```
-Server stoppen  →  Build-Version merken  →  steamcmd  →  Version vergleichen
-                →  bei Update: gameinfo.gi prüfen und reparieren
-                →  Server starten  →  verifizieren, dass er läuft
+stoppen → Build merken → steamcmd → Build vergleichen
+        → bei Update: gameinfo.gi prüfen, ggf. reparieren
+        → starten → nachsehen, ob er wirklich läuft
 ```
 
-Der Server ist morgens aktuell und funktionsfähig oder ich habe im Log eine klare Aussage, was kaputt ist. Kein Suchen mehr im laufenden Betrieb.
+Morgens ist der Server aktuell oder im Log steht, was kaputt ist.
 
 ## Aufbau
 
 ```
-scripts/cs2-start.sh      Startet den Server, liest Konfiguration aus config.env
-scripts/cs2-update.sh     Der Wartungslauf, per Cron um 06:00
-systemd/cs2.service       Dienst-Definition, Restart on-failure
-systemd/cs2-sudoers       Minimale sudo-Rechte für den steam-Benutzer
-config.example.env        Vorlage, echte config.env ist per .gitignore ausgeschlossen
+scripts/cs2-start.sh      Startet den Server, liest config.env
+scripts/cs2-update.sh     Der Wartungslauf
+systemd/cs2.service       Dienst-Definition
+systemd/cs2-sudoers       sudo-Rechte für den steam-User
+config.example.env        Vorlage, echte config.env ist in .gitignore
 docs/crontab.example      Cron-Eintrag
 ```
 
-## Entscheidungen, die ich bewusst so getroffen habe
+## Warum so gebaut
 
-**Der Server wird immer wieder gestartet, egal was schiefgeht.**
-Das Skript stoppt den Server früh und macht danach Dinge, die fehlschlagen können. Ohne Absicherung bleibt der Server bei einem Fehler in steamcmd dauerhaft unten und das fällt erst abends auf. Deshalb gibt es einen `trap ... EXIT`, der den Dienst bei jedem Abbruch wieder hochfährt. Zusätzlich wird nach dem Start geprüft, ob er wirklich aktiv ist, statt das anzunehmen.
-
-**Systemd statt `screen` oder `nohup`.**
-Automatischer Neustart bei Absturz, sauberes Logging über journalctl, und `stop`/`start` funktioniert aus dem Skript heraus ohne PID-Gefrickel. `exec` im Start-Skript sorgt dafür, dass der Server selbst der Hauptprozess des Dienstes wird und Signale direkt bekommt statt an ein Wrapper-Bash zu gehen.
-
-**Der steam-Benutzer bekommt genau zwei sudo-Rechte, nicht mehr.**
-Das Skript braucht `systemctl start` und `stop` für einen einzigen Dienst. Genau das steht in der sudoers-Regel, namentlich, nichts darüber hinaus. Ein pauschales NOPASSWD für einen Benutzer, der einen aus dem Internet erreichbaren Gameserver betreibt, wäre der falsche Kompromiss.
-
-**Versionsvergleich über `steam.inf` statt über die Ausgabe von steamcmd.**
-Die `PatchVersion` in `steam.inf` ist die Wahrheit auf der Platte. steamcmd zu parsen ist fragil, weil sich das Ausgabeformat ändert und je nach Fehlerfall anders aussieht. Vorher/nachher vergleichen ist einfacher und robuster.
-
-**Die gameinfo.gi-Reparatur ist abschaltbar.**
-Automatisch in einer Datei herumzuschreiben, die Valve selbst verwaltet, ist ein Eingriff. Deshalb: vorher Backup, danach verifizieren, dass der Eintrag wirklich drinsteht, bei Misserfolg Backup zurückspielen. Und über `AUTO_FIX_GAMEINFO=0` lässt sich das Ganze auf reines Warnen umstellen. Wer das nicht will, muss es nicht nutzen.
+- **`trap ... EXIT`** — das Skript stoppt den Server und macht danach Dinge, die schiefgehen können. Ohne Sicherheitsnetz bleibt der Server nach einem steamcmd-Fehler bis abends unten.
+- **systemd statt screen** — Restart bei Absturz, Logs über journalctl, kein PID-Gefrickel. `exec` im Start-Skript, damit Signale beim Server landen und nicht bei einer Wrapper-Shell.
+- **sudo nur für `start` und `stop` von `cs2.service`** — mehr braucht das Skript nicht.
+- **Version aus `steam.inf`** statt steamcmd-Ausgabe zu parsen. Das Ausgabeformat ändert sich, die PatchVersion auf der Platte nicht.
+- **gameinfo.gi-Reparatur mit Backup, und abschaltbar** über `AUTO_FIX_GAMEINFO=0`. Automatisch in einer Valve-Datei rumzuschreiben will nicht jeder.
 
 ## Known Issues
 
-Was ich weiß, aber (noch) nicht gelöst habe:
+- Plugin-Updates macht das Skript nicht, es warnt nur. Metamod, CSSharp und MatchZy ziehe ich von Hand nach, weil deren Releases nicht zeitgleich zu den CS2-Updates kommen. Teils kann es auch Tage dauern bevor ein Update von den Skripten kommt.
+- Keine Benachrichtigung. Fehler sehe ich nur, wenn ich ins Log schaue. Ein Discord-Webhook wäre der nächste Schritt.
+- Feste Uhrzeit statt Spielerabfrage per RCON. Reicht bisher.
+- Kein Rollback auf den alten Build, wenn ein Update den Server zerlegt.
 
-- **Plugin-Versionen werden nicht automatisch aktualisiert.** Nach einem Engine-Update warnt das Skript nur, dass Metamod/CSSharp/MatchZy kaputt sein könnten. Das Nachziehen mache ich von Hand, weil die Releases nicht synchron zu den CS2-Updates erscheinen und ein blindes Update das Problem eher vergrößert.
-- **Keine Benachrichtigung.** Ich sehe Fehler nur, wenn ich ins Log schaue. Ein Discord-Webhook bei Fehlern wäre der nächste sinnvolle Schritt und ist wenig Aufwand.
-- **Feste Uhrzeit statt Prüfung auf aktive Spieler.** Um 06:00 spielt bei uns niemand, das reicht für den Anwendungsfall. Sauberer wäre, per RCON die Spielerzahl abzufragen und den Lauf zu verschieben, wenn jemand online ist.
-- **Kein Rollback auf den vorherigen Build.** Wenn ein Update den Server unbrauchbar macht, hilft das Skript nicht weiter. Über SteamCMD wäre ein Downgrade möglich, aber das ist deutlich mehr Aufwand als der Fall bisher wert war.
-
-## Was ich dabei gelernt habe
-
-Der eigentliche Erkenntnisgewinn war nicht Bash, sondern **welche Fehler wehtun**. Der Server, der gar nicht startet, ist harmlos – das merkt man sofort. Gefährlich ist der Server, der scheinbar normal läuft, aber ohne Plugins. Deshalb prüft das Skript nicht nur, ob etwas geklappt hat, sondern verifiziert das Ergebnis: Ist der Eintrag nach der Reparatur wirklich in der Datei? Ist der Dienst nach dem Start wirklich aktiv?
-
-Das Zweite: Automatisierung, die im Fehlerfall einen schlechteren Zustand hinterlässt als gar keine Automatisierung, ist ein Rückschritt. Der Trap, der den Server auf jeden Fall wieder hochfährt, ist deshalb die wichtigste Zeile im ganzen Skript.
+Ein Server, der gar nicht startet, ist harmlos, den merkt man sofort. Weh tut der, der läuft und trotzdem nichts kann. Deshalb prüft das Skript nach jedem Eingriff nach, statt es anzunehmen.
 
 ## Setup
 
@@ -88,8 +73,8 @@ sudo systemctl enable --now cs2.service
 crontab -e                      # Inhalt aus docs/crontab.example
 ```
 
-GSLT-Token gibt es unter https://steamcommunity.com/dev/managegameservers
+GSLT-Token: https://steamcommunity.com/dev/managegameservers
 
 ---
 
-Gebaut, weil ich keine Lust mehr hatte, den Server abends von Hand zu reparieren bzw. zu updaten.
+Gebaut, weil ich keine Lust mehr hatte, das abends von Hand zu reparieren bzw. ich ihn immer Funktionsfähig haben will, auch wenn ich mal nicht da bin.
