@@ -12,7 +12,7 @@ Valve patcht CS2 oft ohne Ankündigung. Danach ist meistens eins von drei Dingen
 
 Der dritte Fall ist der ärgerlichste. Der Server startet ganz normal und wirft keinen Fehler, hat aber kein einziges Plugin geladen. MatchZy fehlt, das Match lässt sich nicht starten, und keiner weiß warum.
 
-Vorher lief das so, das jemand Abends spielen wollte und mir eine Nachricht geschrieben hat, damit ich das Problem behebe.
+Vorher lief das so, dass jemand Abends spielen wollte und mir eine Nachricht geschrieben hat, damit ich das Problem behebe.
 
 ## Was es macht
 
@@ -57,7 +57,7 @@ Ein Server, der gar nicht startet, ist harmlos, den merkt man sofort. Weh tut de
 ## Setup
 
 ```bash
-git clone <repo> /home/steam/cs2-server-automation
+git clone [<repo>](https://github.com/Laeysel/CS2-Server-Automation) /home/steam/cs2-server-automation
 cd /home/steam/cs2-server-automation
 
 cp config.example.env config.env
@@ -77,4 +77,4 @@ GSLT-Token: https://steamcommunity.com/dev/managegameservers
 
 ---
 
-Gebaut, weil ich keine Lust mehr hatte, das abends von Hand zu reparieren bzw. ich ihn immer Funktionsfähig haben will, auch wenn ich mal nicht da bin.
+Gebaut, weil ich keine Lust mehr hatte, das abends von Hand zu reparieren bzw. ich ihn immer funktionsfähig haben will, auch wenn ich mal nicht da bin.
