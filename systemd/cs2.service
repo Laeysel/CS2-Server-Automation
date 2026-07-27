@@ -1,0 +1,13 @@
+[Unit]
+Description=CS2 Dedicated Server
+After=network.target
+
+[Service]
+Type=simple
+User=steam
+ExecStart=/home/steam/cs2-server-automation/scripts/cs2-start.sh
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

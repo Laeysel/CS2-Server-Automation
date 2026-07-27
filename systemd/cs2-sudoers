@@ -1,0 +1,4 @@
+# Nach /etc/sudoers.d/cs2 kopieren, Rechte 440.
+# Der steam-Benutzer darf ausschliesslich diesen einen Dienst starten und
+# stoppen, sonst nichts. Kein allgemeines NOPASSWD.
+steam ALL=(ALL) NOPASSWD: /usr/bin/systemctl start cs2.service, /usr/bin/systemctl stop cs2.service

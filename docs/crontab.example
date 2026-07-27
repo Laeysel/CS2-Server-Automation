@@ -1,0 +1,3 @@
+# crontab -e   (als Benutzer steam)
+# Taeglicher Wartungslauf um 06:00 Uhr.
+0 6 * * * /home/steam/cs2-server-automation/scripts/cs2-update.sh
